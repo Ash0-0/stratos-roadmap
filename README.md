@@ -1238,17 +1238,174 @@ stratos/
 
 ## Milestones
 
-- [ ] **M1**: Spring Boot CRUD API + PostgreSQL, verified via Postman, complete Swagger documentation
-- [ ] **M2**: Spring Security + JWT authentication, RBAC permission control complete
-- [ ] **M3**: Quarkus running, SmallRye GraphQL Schema generated, queryable via Playground
-- [ ] **M4**: GraphQL Query complete (employees, Dashboard aggregated data), Code Generator produces types
-- [ ] **M5**: GraphQL Mutation complete (leave approval), Subscription real-time notifications working
-- [ ] **M6**: Next.js frontend scaffold: login, employee list (Axios + TanStack Query)
-- [ ] **M7**: Dashboard page connected to Apollo Client, aggregated query returns all data in one request
-- [ ] **M8**: Complex form: employee create/edit (React Hook Form + Zod, 15+ fields)
-- [ ] **M9**: Leave request end-to-end workflow: submit (REST) → approve (GraphQL Mutation) → notify (Subscription)
-- [ ] **M10**: Docker Compose one-command launch of all services
-- [ ] **M11**: All three repos on GitHub, each with a clear README explaining how to run
+### M1 — Spring Boot CRUD API + PostgreSQL
+
+> Goal: A runnable REST API with full CRUD, pagination, and Swagger docs — verified end-to-end with Postman
+
+- [ ] Create `stratos-api` repo, generate project via [Spring Initializr](https://start.spring.io) (Web, JPA, PostgreSQL, Validation, Lombok, Swagger)
+- [ ] Write `docker-compose.yml` — PostgreSQL 15 + Redis containers
+- [ ] Configure `application.yml` with `dev` / `prod` profiles
+- [ ] Flyway `V1__init_schema.sql` — create `departments` and `employees` tables
+- [ ] `Department` entity + `Employee` entity with `@ManyToOne` association
+- [ ] `DepartmentRepository` + `EmployeeRepository` extending `JpaRepository`
+- [ ] `EmployeeService` with `@Transactional` — CRUD + paginated list
+- [ ] `EmployeeController` — full REST endpoints (GET / POST / PUT / DELETE)
+- [ ] Pagination + search + sorting via `Pageable` + `Page<T>`
+- [ ] Request / Response DTOs + MapStruct mappers (never expose Entity directly)
+- [ ] `ApiResponse<T>` unified response wrapper
+- [ ] `@RestControllerAdvice` global exception handler (`ResourceNotFoundException`, `ValidationException`)
+- [ ] Swagger / OpenAPI config — all endpoints documented with examples
+- [ ] Postman collection — smoke-test all endpoints, verify 200 / 400 / 404 responses
+
+---
+
+### M2 — Spring Security + JWT + RBAC
+
+> Goal: Secured API with login, token refresh, and role-based access control
+
+- [ ] Flyway `V2__add_auth_tables.sql` — `users`, `roles`, `user_roles` tables + seed admin user
+- [ ] `User` / `Role` entities + associations
+- [ ] `UserDetailsService` — load user + roles from database
+- [ ] JWT utility class — generate, validate, parse Access Token (15 min) + Refresh Token (7 days)
+- [ ] `JwtAuthFilter` extends `OncePerRequestFilter` — attach `SecurityContext` on every request
+- [ ] `SecurityFilterChain` — define public vs protected route rules
+- [ ] `POST /api/auth/login` endpoint — returns Access Token + Refresh Token
+- [ ] `POST /api/auth/refresh` endpoint — exchanges Refresh Token for new Access Token
+- [ ] `@PreAuthorize("hasRole('ADMIN')")` on admin-only endpoints
+- [ ] Test full auth flow with Postman (login → use token → refresh → revoke)
+
+---
+
+### M3 — Quarkus Running + GraphQL Playground
+
+> Goal: `stratos-ops` boots, Schema is auto-generated, first query works in Playground
+
+- [ ] Create `stratos-ops` repo via [code.quarkus.io](https://code.quarkus.io) — select SmallRye GraphQL, Hibernate ORM with Panache, JDBC PostgreSQL, SmallRye JWT, Mailer
+- [ ] Configure `application.properties` — database URL, JWT settings, Quarkus dev port (8081)
+- [ ] Add `stratos-ops` service to `docker-compose.yml`
+- [ ] First `@GraphQLApi` resource class with a stub `Query`
+- [ ] Define `Employee` GraphQL type (code-first, using `@Type`)
+- [ ] Verify GraphQL Playground accessible at `http://localhost:8081/q/graphql-ui`
+- [ ] Verify Schema tab shows auto-generated SDL
+- [ ] Run a basic `{ employees { id name } }` query successfully in Playground
+
+---
+
+### M4 — GraphQL Queries + Code Generator
+
+> Goal: Dashboard aggregated query works; TypeScript types auto-generated in `stratos-web`
+
+- [ ] Implement `employees(filter, page)` Query with search + pagination
+- [ ] Implement `department(id)` Query
+- [ ] Implement `dashboard` aggregated Query — returns total employees, pending leaves, recent activity in **one request**
+- [ ] Create `stratos-web` repo, scaffold Next.js 14 project (App Router, TypeScript, Tailwind CSS)
+- [ ] Install GraphQL Code Generator + config (`codegen.ts`) — introspect Quarkus schema at runtime
+- [ ] Run `graphql-codegen` — verify `src/gql/graphql.ts` generated with correct types + hooks
+- [ ] Write a sample Apollo Client `useQuery` calling `dashboard` — verify data returns correctly
+
+---
+
+### M5 — GraphQL Mutations + Subscriptions
+
+> Goal: Leave approval via Mutation; real-time notification push via Subscription
+
+- [ ] Implement `submitLeaveRequest(input)` Mutation
+- [ ] Implement `approveLeaveRequest(id)` + `rejectLeaveRequest(id)` Mutations
+- [ ] Create `Notification` entity + GraphQL type
+- [ ] Implement `notificationAdded` Subscription (`@Subscription` with Mutiny `Multi<Notification>`)
+- [ ] Configure WebSocket transport in Quarkus (`quarkus-websockets`)
+- [ ] Trigger notification event after leave approval (async, non-blocking)
+- [ ] Test Subscription in Playground — verify real-time push when leave is approved
+- [ ] Regenerate Code Generator types — verify Mutation + Subscription hooks in `graphql.ts`
+
+---
+
+### M6 — Next.js Frontend Scaffold
+
+> Goal: Login works, employee list loads from Spring Boot via Axios + TanStack Query
+
+- [ ] Install and configure dependencies: shadcn/ui, TanStack Query v5, Axios, Zustand, NextAuth.js v5
+- [ ] Set up `QueryClientProvider` + `SessionProvider` in root layout
+- [ ] Create Axios instance — base URL, attach JWT from session, 401 interceptor (auto-refresh)
+- [ ] NextAuth.js config — Credentials provider calling `POST /api/auth/login`
+- [ ] Login page — form with email + password, error handling, redirect on success
+- [ ] Route middleware — protect all `/dashboard/*` routes, redirect unauthenticated to `/login`
+- [ ] Employee list page — `useQuery` fetching paginated employee list
+- [ ] DataTable with pagination, search input, sorting columns (TanStack Table v8)
+- [ ] Zustand store — persist user session info (role, name) for UI rendering
+
+---
+
+### M7 — Dashboard + Apollo Client
+
+> Goal: Dashboard page fetches all KPI data in a single GraphQL request via Apollo Client
+
+- [ ] Install Apollo Client + `graphql-ws`
+- [ ] Configure Apollo split link — HTTP for Query/Mutation, WebSocket for Subscription
+- [ ] Dashboard page — `useQuery` calling `dashboard` aggregated query
+- [ ] KPI cards: Total Employees, Pending Leave Requests, Departments, Recent Hires
+- [ ] Trend chart component (Recharts or similar) — headcount over time
+- [ ] Confirm exactly **1 network request** loads all dashboard data (verify in DevTools)
+
+---
+
+### M8 — Complex Employee Form
+
+> Goal: Employee create/edit form with 15+ fields, full validation, avatar upload
+
+- [ ] Install React Hook Form + Zod
+- [ ] Define Zod schema — 15+ fields (name, email, phone, department, position, start date, salary, status, emergency contact, etc.)
+- [ ] Employee create form — all fields, inline validation error messages
+- [ ] Edit mode — pre-populate form with existing employee data
+- [ ] Department field as async select (fetch options from API)
+- [ ] Avatar upload — file input + preview + upload to backend
+- [ ] Form submission — POST / PUT via TanStack Query mutation, optimistic update
+- [ ] Toast notification on success / error (shadcn/ui `<Toast>`)
+- [ ] Confirm form reset and navigation after successful submission
+
+---
+
+### M9 — Leave Request End-to-End Workflow
+
+> Goal: Full leave lifecycle — submit → approve → real-time notify — works across all three services
+
+- [ ] Leave request form — date picker, leave type, reason field, Zod validation
+- [ ] Submit via `POST /api/leaves` (REST → Spring Boot), TanStack Query mutation
+- [ ] Manager view — pending leave list with employee info and request details
+- [ ] Approve / Reject buttons → Apollo Client Mutation → Quarkus `approveLeaveRequest`
+- [ ] Subscription listener active in layout — `useSubscription` on `notificationAdded`
+- [ ] Notification bell icon — unread count badge, dropdown with latest notifications
+- [ ] Mark notification as read on click
+- [ ] Leave calendar view — visualize approved leaves by month
+
+---
+
+### M10 — Docker Compose Full Stack
+
+> Goal: `docker-compose up --build` starts all services from scratch with no manual steps
+
+- [ ] `Dockerfile` for `stratos-api` (multi-stage Maven build)
+- [ ] `Dockerfile` for `stratos-ops` (multi-stage Maven build, Quarkus fast-jar)
+- [ ] `Dockerfile` for `stratos-web` (multi-stage Node build)
+- [ ] Root `docker-compose.yml` — all 5 services: postgres, redis, stratos-api, stratos-ops, stratos-web
+- [ ] Health checks for postgres + redis; api/ops wait for DB to be ready (`depends_on: condition: service_healthy`)
+- [ ] `.env.example` file — document all required environment variables
+- [ ] Cold-start test: `docker-compose down -v && docker-compose up --build` — verify full stack comes up clean
+- [ ] Verify cross-service communication (web → api, web → ops, api ↔ db)
+
+---
+
+### M11 — GitHub Polish + Public Release
+
+> Goal: All three repos are public, documented, and runnable by a stranger in under 10 minutes
+
+- [ ] `stratos-api` README — prerequisites, how to run locally, how to run with Docker, Swagger URL
+- [ ] `stratos-ops` README — prerequisites, how to run locally, GraphQL Playground URL
+- [ ] `stratos-web` README — prerequisites, env vars, how to run, feature screenshots
+- [ ] `stratos-roadmap` README — final status update, mark completed milestones ✅
+- [ ] Push all three repos to GitHub (public visibility)
+- [ ] Final smoke test — clone each repo fresh, follow README, verify it works
+- [ ] Add repo links to `stratos-roadmap` README header
 
 ---
 
